@@ -1,0 +1,229 @@
+# GameVault Project .gitignore
+
+# ==================== Python (Server) ====================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Alembic
+# Keep the alembic directory structure but ignore temporary files
+*.pyc
+
+# ==================== Node.js (Client) ====================
+# Dependencies
+node_modules/
+jspm_packages/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+dist-ssr/
+release/
+out/
+build/
+
+# Electron packaged apps
+*.exe
+*.dmg
+*.app
+*.deb
+*.AppImage
+*.snap
+
+# ==================== Database & Storage ====================
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+
+# Database backups
+server/storage/backups/*.db
+
+# Game storage (keep directory structure)
+server/storage/games/*
+!server/storage/games/.gitkeep
+
+# Save files (keep directory structure)
+server/storage/saves/*
+!server/storage/saves/.gitkeep
+
+# Static images (keep directory structure)
+server/storage/static/images/*
+!server/storage/static/images/.gitkeep
+
+# ==================== Environment & Configuration ====================
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.production.local
+
+# Keep example files
+!.env.example
+!.env.development
+!.env.production
+
+# ==================== IDEs & Editors ====================
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# JetBrains IDEs (PyCharm, WebStorm, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Vim
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ==================== Operating System ====================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# ==================== TypeScript ====================
+*.tsbuildinfo
+.tsbuildinfo
+
+# ==================== Testing ====================
+coverage/
+.nyc_output/
+*.lcov
+
+# ==================== Logs ====================
+*.log
+logs/
+*.log.*
+
+# ==================== Temporary Files ====================
+*.tmp
+*.temp
+*.bak
+*.swp
+*.orig
+
+# ==================== Security ====================
+# Never commit sensitive files
+*.pem
+*.key
+*.cert
+*.csr
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# ==================== Misc ====================
+# Local development
+.local/
+.cache/
+*.pid
+*.seed
+*.pid.lock
+
+# Debug files
+*.dmp
