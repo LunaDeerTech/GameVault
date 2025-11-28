@@ -32,6 +32,7 @@ def init_db():
     import logging
     from app.models import game, user, save, playtime, content_rating
     from app.models.content_rating import init_default_content_ratings
+    from app.models.user import init_default_admin_user
     
     logger = logging.getLogger(__name__)
     
@@ -60,3 +61,5 @@ def init_db():
     except Exception as e:
         logger.error(f"Failed to initialize content ratings: {e}")
         raise
+    
+    init_default_admin_user()

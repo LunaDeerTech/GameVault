@@ -53,7 +53,7 @@ async def scan_games_directory():
 @router.post("/{game_id}/scrape")
 async def scrape_game_metadata(game_id: int):
     """
-    Scrape metadata for a specific game from Steam/IGDB
+    Scrape metadata for a specific game from Steam/IGDB (admin only)
     """
     # TODO: Implement metadata scraping logic
     pass
@@ -62,16 +62,7 @@ async def scrape_game_metadata(game_id: int):
 @router.put("/{game_id}")
 async def update_game(game_id: int):
     """
-    Update game information
+    Update game information (admin only)
     """
     # TODO: Implement update game logic
-    pass
-
-
-@router.delete("/{game_id}")
-async def delete_game(game_id: int):
-    """
-    Delete game (admin only)
-    """
-    # TODO: Implement delete game logic
     pass

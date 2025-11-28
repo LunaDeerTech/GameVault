@@ -21,6 +21,14 @@ async def get_user(user_id: int):
     # TODO: Implement get user by ID logic
     pass
 
+@router.post("/")
+async def create_user():
+    """
+    Create a new user
+    """
+    # TODO: Implement create user logic
+    pass
+
 
 @router.put("/{user_id}")
 async def update_user(user_id: int):

@@ -6,8 +6,12 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing - Use Argon2 (modern, secure, no byte limits)
+pwd_context = CryptContext(
+    schemes=["argon2"], 
+    deprecated="auto",
+    argon2__default_rounds=12,
+)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
