@@ -30,11 +30,14 @@ class User(Base):
 
 def init_default_admin_user():
     """Initialize a default admin user if none exist"""
+    from app.crud.user import get_admin_users, create_user
+    from app.schemas.user import UserCreate
+    
     db = SessionLocal()
     try:
         # Check if any admin users already exist
-        existing_admin = db.query(User).filter(User.is_admin == True).first()
-        if existing_admin:
+        existing_admins = get_admin_users(db, limit=1)
+        if existing_admins:
             return
         
         # Generate a random password (12 characters with letters, digits, and punctuation)
@@ -46,14 +49,18 @@ def init_default_admin_user():
         logger.info("===============================================")
         logger.warning("Default admin credentials should be changed immediately after first login.")
         
-        
-        # Create default admin user
-        default_admin = User(
+        # Create default admin user using schema and CRUD
+        admin_user_data = UserCreate(
             username="admin",
-            hashed_password=get_password_hash(random_password),
-            is_admin=True
+            password=random_password,
+            is_admin=True,
+            is_active=True
         )
-        db.add(default_admin)
-        db.commit()
+        create_user(db, admin_user_data)
+        logger.info("Default admin user created successfully.")
+        
+    except Exception as e:
+        logger.error(f"Error creating default admin user: {e}")
+        db.rollback()
     finally:
         db.close()
