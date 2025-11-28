@@ -16,15 +16,6 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
     pass
 
 
-@router.post("/register")
-async def register():
-    """
-    Register a new user
-    """
-    # TODO: Implement registration logic
-    pass
-
-
 @router.get("/me")
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     """
