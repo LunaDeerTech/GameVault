@@ -56,24 +56,6 @@ server/
 └── requirements.txt  # Python dependencies
 ```
 
-## API Endpoints
-
-### Authentication
-- `POST /api/auth/token` - Login
-- `POST /api/auth/register` - Register
-- `GET /api/auth/me` - Get current user
-
-### Games
-- `GET /api/games` - List games
-- `GET /api/games/{id}` - Get game details
-- `GET /api/games/{id}/manifest` - Get game manifest
-- `POST /api/games/scan` - Scan for new games
-
-### Saves
-- `GET /api/saves/{game_id}` - Get game saves
-- `POST /api/saves/{game_id}/upload` - Upload save
-- `GET /api/saves/{game_id}/download/{save_id}` - Download save
-
 ## Development
 
 Run with auto-reload:

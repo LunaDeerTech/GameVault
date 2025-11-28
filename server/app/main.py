@@ -1,5 +1,6 @@
 """FastAPI Application Entry Point"""
 from contextlib import asynccontextmanager
+import logging, os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -7,12 +8,30 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api import games, users, auth, saves
 
+# Configure logging
+logging.basicConfig(
+    level=getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+
+logger = logging.getLogger(__name__)
+
+logger.info("Initializing storage...")
+if not os.path.exists(settings.STORAGE_PATH):
+    os.makedirs(settings.STORAGE_PATH, exist_ok=True)
+    logger.info(f"Created storage directory at {settings.STORAGE_PATH}")
+    os.makedirs(os.path.join(settings.STORAGE_PATH, "static"), exist_ok=True)
+    logger.info(f"Created static directory at {os.path.join(settings.STORAGE_PATH, 'static')}")
+    os.makedirs(os.path.join(settings.STORAGE_PATH, "saves"), exist_ok=True)
+    logger.info(f"Created saves directory at {os.path.join(settings.STORAGE_PATH, 'saves')}")
+else:
+    logger.info(f"Storage directory already exists at {settings.STORAGE_PATH}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan event handler for startup and shutdown"""
     from app.core.database import init_db
-    import logging
     
     logger = logging.getLogger(__name__)
     

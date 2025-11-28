@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     # Environment
     ENVIRONMENT: str = "production"  # "development" or "production"
     
+    # Logging
+    LOG_LEVEL: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    
     # API settings
     API_V1_STR: str = "/api/v1"
     
@@ -25,10 +28,10 @@ class Settings(BaseSettings):
     ALLOWED_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
     
     # Database
-    DATABASE_URL: str = "sqlite:///./storage/gamevault.db"
+    DATABASE_URL: str = "sqlite:///storage/gamevault.db"
     
     # Storage
-    STORAGE_PATH: str = "./storage"
+    STORAGE_PATH: str = "/storage"
     
     # External APIs
     IGDB_CLIENT_ID: str = ""
