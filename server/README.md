@@ -25,8 +25,8 @@ pip install -r requirements.txt
 
 3. Configure environment:
 ```bash
-copy .env.example .env
-# Edit .env with your configuration
+copy config.yaml.example config.yaml
+# Edit config.yaml with your configuration
 ```
 
 4. Run the server:
