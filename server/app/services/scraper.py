@@ -17,10 +17,7 @@ logger = logging.getLogger(__name__)
 class MetadataScraper:
     """Service for scraping game metadata from external APIs"""
     
-    def __init__(self, steam_api_key: str = "", igdb_client_id: str = "", igdb_client_secret: str = "", max_workers: int = 5):
-        self.steam_api_key = steam_api_key
-        self.igdb_client_id = igdb_client_id
-        self.igdb_client_secret = igdb_client_secret
+    def __init__(self, igdb_client_id: str = "", igdb_client_secret: str = "", max_workers: int = 5):
         self.max_workers = max_workers  # Max concurrent scraping tasks
         
         # Task queue with priority support: (priority_level, game_id, game, db)
@@ -28,6 +25,9 @@ class MetadataScraper:
         self._active_tasks: set = set()
         self._workers: list = []
         self._running = False
+        
+        self.steam_scraper = SteamScraper()
+        self.igdb_scraper = IGDBScraper(igdb_client_id, igdb_client_secret)
     
     async def start(self):
         """Start the scraper worker pool"""
@@ -148,7 +148,7 @@ class MetadataScraper:
             
             if not steam_app_id:
                 logger.info(f"Searching Steam for game: {game.name}")
-                steam_app_id = await self.search_steam(game.name)
+                steam_app_id = await self.steam_scraper.search_steam(game.name)
                 if steam_app_id:
                     logger.info(f"Found Steam AppID: {steam_app_id}")
             
@@ -162,7 +162,7 @@ class MetadataScraper:
             
             if not igdb_id:
                 logger.info(f"Searching IGDB for game: {game.name}")
-                igdb_id = await self.search_igdb(game.name)
+                igdb_id = await self.igdb_scraper.search_igdb(game.name)
                 if igdb_id:
                     logger.info(f"Found IGDB ID: {igdb_id}")
             
@@ -172,9 +172,9 @@ class MetadataScraper:
             
             tasks = []
             if steam_app_id:
-                tasks.append(self.download_steam_metadata(steam_app_id))
+                tasks.append(self.steam_scraper.download_steam_metadata(steam_app_id))
             if igdb_id:
-                tasks.append(self.download_igdb_metadata(igdb_id))
+                tasks.append(self.igdb_scraper.download_igdb_metadata(igdb_id))
             
             if tasks:
                 results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -259,6 +259,52 @@ class MetadataScraper:
         
         return merged
     
+    def get_queue_size(self) -> int:
+        """Get the current size of the task queue"""
+        return self._task_queue.qsize()
+    
+    def get_active_tasks(self) -> int:
+        """Get the number of currently active tasks"""
+        return len(self._active_tasks)
+    
+    def is_running(self) -> bool:
+        """Check if the scraper is running"""
+        return self._running
+
+
+async def download_image(url: str, save_path: Path) -> None:
+    """
+    Download image from URL and save to specified path
+    Args:
+        url: Image URL
+        save_path: Local path to save the image
+    """
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            
+            # Get suffix from URL
+            suffix = Path(url).suffix
+            
+            # Ensure directory exists
+            save_path.mkdir(parents=True, exist_ok=True)
+            
+            # Generate random filename with alphanumeric characters
+            random_filename = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+            final_path = save_path / (random_filename + suffix)
+            
+            # Write image to file
+            with open(final_path, 'wb') as f:
+                f.write(response.content)
+            
+            logger.info(f"Downloaded image to: {final_path}")
+            
+    except Exception as e:
+        logger.error(f"Failed to download image from {url}: {e}")
+
+
+class SteamScraper():
     async def search_steam(self, game_name: str) -> int:
         """
         Search for game on Steam by name
@@ -273,6 +319,11 @@ class MetadataScraper:
         Returns new game metadata to update
         """
         pass
+
+class IGDBScraper():
+    def __init__(self, client_id: str, client_secret: str):
+        self.client_id = client_id
+        self.client_secret = client_secret
     
     async def search_igdb(self, game_name: str) -> int:
         """
@@ -288,47 +339,3 @@ class MetadataScraper:
         Returns new game metadata to update
         """
         pass
-    
-    def get_queue_size(self) -> int:
-        """Get the current size of the task queue"""
-        return self._task_queue.qsize()
-    
-    def get_active_tasks(self) -> int:
-        """Get the number of currently active tasks"""
-        return len(self._active_tasks)
-    
-    def is_running(self) -> bool:
-        """Check if the scraper is running"""
-        return self._running
-    
-    async def download_image(self, url: str, save_path: Path) -> None:
-        """
-        Download image from URL and save to specified path
-        Args:
-            url: Image URL
-            save_path: Local path to save the image
-        """
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url)
-                response.raise_for_status()
-                
-                # Get suffix from URL
-                suffix = Path(url).suffix
-                
-                # Ensure directory exists
-                save_path.mkdir(parents=True, exist_ok=True)
-                
-                # Generate random filename with alphanumeric characters
-                random_filename = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-                final_path = save_path / (random_filename + suffix)
-                
-                # Write image to file
-                with open(final_path, 'wb') as f:
-                    f.write(response.content)
-                
-                logger.info(f"Downloaded image to: {final_path}")
-                
-        except Exception as e:
-            logger.error(f"Failed to download image from {url}: {e}")
-    
