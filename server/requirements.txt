@@ -30,6 +30,9 @@ apscheduler==3.10.4
 # File handling
 aiofiles==23.2.1
 
+# File system monitoring
+watchdog==6.0.0
+
 # Configuration
 PyYAML==6.0.1
 

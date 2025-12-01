@@ -7,8 +7,18 @@ from typing import List, Dict
 class GameScanner:
     """Service for scanning directories and discovering games"""
     
-    def __init__(self, base_path: str):
-        self.base_path = Path(base_path)
+    def __init__(self, games_directory: Path):
+        """
+        Initialize watchdog service
+        
+        Args:
+            games_directory: Path to the games directory to monitor
+                e.g. /path/to/games
+                        - Game1
+                        - Game2
+        """
+        self.games_directory = games_directory
+        self.pending_scans: Dict[Path, bool] = {} # path -> is_scanning
     
     async def scan_directory(self) -> List[Dict]:
         """
@@ -18,17 +28,18 @@ class GameScanner:
         # TODO: Implement directory scanning
         pass
     
-    async def generate_manifest(self, game_path: Path) -> Dict:
+    async def generate_game_info(self, game_path: Path) -> Dict:
         """
-        Generate manifest.json for a game directory
-        Contains file fingerprints (path, size, modified time, hash)
+        Generate basic game info from a game folder:
+            1. Create database entry if not exists
+            2. Generate detailed info parallely:
+                a. Generate manifest.json for the game folder
+                    then update database with manifest info
+                c. Add to Scraper queue for metadata fetching
+    
+        Args:
+            game_path: Path to the individual game folder
         """
         # TODO: Implement manifest generation
         pass
     
-    def calculate_file_hash(self, file_path: Path) -> str:
-        """
-        Calculate SHA-256 hash for a file
-        """
-        # TODO: Implement file hashing
-        pass
