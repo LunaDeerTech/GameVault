@@ -10,7 +10,8 @@ from typing import Dict, List, Optional
 class ManifestService:
     """Service for managing game manifests and computing differences"""
         
-    async def generate_manifest(self, game_path: Path) -> Dict:
+    @staticmethod
+    async def generate_manifest(game_path: Path) -> Dict:
         """
         Generate manifest.json for a game directory
         Contains file fingerprints (path, size, modified time, hash)
@@ -98,7 +99,8 @@ class ManifestService:
         
         return manifest
         
-    async def calculate_file_hash(self, file_path: Path) -> str:
+    @staticmethod
+    async def calculate_file_hash(file_path: Path) -> str:
         """
         Calculate SHA-256 hash for a file using chunked async I/O
         Optimized for large files to avoid memory issues
@@ -118,7 +120,8 @@ class ManifestService:
         except (OSError, IOError) as e:
             raise ValueError(f"Failed to calculate hash for {file_path}: {e}")
     
-    async def update_manifest(self, game_path: Path, 
+    @staticmethod
+    async def update_manifest(game_path: Path, 
                               added_files: Optional[List[Path]] = None,
                               updated_files: Optional[List[Path]] = None,
                               removed_files: Optional[List[Path]] = None) -> None:
@@ -185,7 +188,8 @@ class ManifestService:
             
             await asyncio.get_event_loop().run_in_executor(None, _save_manifest)
     
-    async def get_manifest_hash(self, game_path: Path) -> str:
+    @staticmethod
+    async def get_manifest_hash(game_path: Path) -> str:
         """
         Get quick hash of manifest for comparison
         Used for fast change detection
