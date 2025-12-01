@@ -3,8 +3,7 @@
 
 # Game content paths
 game-content-paths:
-  - /path/to/your/game/content1
-  - /path/to/your/game/content2
+  - /path/to/your/games
 
 # Environment Configuration
 environment: development  # development or production
