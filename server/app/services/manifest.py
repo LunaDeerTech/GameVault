@@ -53,7 +53,7 @@ class ManifestService:
                     relative_path = file_path.relative_to(game_path)
                     
                     # Calculate hash
-                    file_hash = await self.calculate_file_hash(file_path)
+                    file_hash = await ManifestService.calculate_file_hash(file_path)
                     
                     return {
                         'path': str(relative_path).replace('\\', '/'),  # Use forward slashes
@@ -133,7 +133,7 @@ class ManifestService:
         
         if not manifest_path.exists():
             # No existing manifest, generate new one
-            await self.generate_manifest(game_path)
+            await ManifestService.generate_manifest(game_path)
             return
         
         # Load existing manifest
@@ -159,7 +159,7 @@ class ManifestService:
                 stat = file_path.stat()
                 file_size = stat.st_size
                 modified_time = stat.st_mtime
-                file_hash = await self.calculate_file_hash(file_path)
+                file_hash = await ManifestService.calculate_file_hash(file_path)
                 
                 existing_files[relative_path] = {
                     'size': file_size,
@@ -199,6 +199,6 @@ class ManifestService:
             return ""
         
         # Calculate hash of manifest file itself
-        return await self.calculate_file_hash(manifest_path)
+        return await ManifestService.calculate_file_hash(manifest_path)
     
 
