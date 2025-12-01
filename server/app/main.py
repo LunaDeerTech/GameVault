@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.api import games, users, auth, saves
+from server.app.services.scraper import metadataScraperService
 
 # Configure logging
 logging.basicConfig(
@@ -45,6 +46,11 @@ async def lifespan(app: FastAPI):
         raise
     
     # TODO: Start background tasks (APScheduler)
+    metadataScraperService.start(
+        igdb_client_id=settings.IGDB_CLIENT_ID,
+        igdb_client_secret=settings.IGDB_CLIENT_SECRET,
+        max_workers=5
+    )
     
     yield
     

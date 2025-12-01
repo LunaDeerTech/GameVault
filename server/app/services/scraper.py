@@ -11,26 +11,27 @@ from app.schemas.game import GameUpdate
 from app.crud.game import update_game
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
+from server.app.core.config import settings
 
+logger = logging.getLogger(__name__)
 
 class MetadataScraper:
     """Service for scraping game metadata from external APIs"""
     
-    def __init__(self, igdb_client_id: str = "", igdb_client_secret: str = "", max_workers: int = 5):
-        self.max_workers = max_workers  # Max concurrent scraping tasks
-        
+    def __init__(self):
         # Task queue with priority support: (priority_level, game_id, game, db)
         self._task_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
         self._active_tasks: set = set()
         self._workers: list = []
         self._running = False
         
+    
+    async def start(self, igdb_client_id: str = "", igdb_client_secret: str = "", max_workers: int = 5):
+        """Start the scraper worker pool"""
+        self.max_workers = max_workers  # Max concurrent scraping tasks
         self.steam_scraper = SteamScraper()
         self.igdb_scraper = IGDBScraper(igdb_client_id, igdb_client_secret)
-    
-    async def start(self):
-        """Start the scraper worker pool"""
+        
         if self._running:
             logger.warning("Scraper is already running")
             return
@@ -272,12 +273,11 @@ class MetadataScraper:
         return self._running
 
 
-async def download_image(url: str, save_path: Path) -> None:
+async def download_image(url: str) -> None:
     """
     Download image from URL and save to specified path
     Args:
         url: Image URL
-        save_path: Local path to save the image
     """
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -288,6 +288,7 @@ async def download_image(url: str, save_path: Path) -> None:
             suffix = Path(url).suffix
             
             # Ensure directory exists
+            save_path = Path(settings.STORAGE_PATH) / 'static' / 'images'
             save_path.mkdir(parents=True, exist_ok=True)
             
             # Generate random filename with alphanumeric characters
@@ -339,3 +340,6 @@ class IGDBScraper():
         Returns new game metadata to update
         """
         pass
+    
+    
+metadataScraperService = MetadataScraper()
