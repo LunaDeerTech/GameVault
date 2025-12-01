@@ -1,4 +1,5 @@
 """Metadata scraping service from Steam/IGDB"""
+import datetime
 import random
 import string
 import httpx
@@ -205,6 +206,8 @@ class MetadataScraper:
                 merged_metadata.steam_id = steam_app_id
             if igdb_id and not merged_metadata.igdb_id:
                 merged_metadata.igdb_id = igdb_id
+      
+            merged_metadata.scraped_at = datetime.datetime.now(datetime.timezone.utc)
             
             # Step 5: Update game in database
             if merged_metadata:

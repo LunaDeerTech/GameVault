@@ -134,6 +134,8 @@ def update_game(db: Session, game_id: int, game_update: GameUpdate) -> Optional[
         model_updates['total_size'] = update_data['size_bytes']
     if 'manifest_hash' in update_data:
         model_updates['manifest_hash'] = update_data['manifest_hash']
+    if 'scraped_at' in update_data:
+        model_updates['scraped_at'] = update_data['scraped_at']
     
     # Update the game
     for key, value in model_updates.items():
