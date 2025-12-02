@@ -1,45 +1,40 @@
-"""Directory scanning service for game discovery"""
-import os
+"""Game directory scan service"""
+import asyncio
+import logging
 from pathlib import Path
-from typing import List, Dict
+from app.services.manifest import ManifestService
+from app.services.scraper import metadataScraperService
 
 
-class GameScanner:
-    """Service for scanning directories and discovering games"""
+logger = logging.getLogger(__name__)
+
+class InitialScannerService:
+    """Service to perform initial scan of game directories"""
     
-    def __init__(self, games_directory: Path):
-        """
-        Initialize watchdog service
+    def __init__(self):
+        """Initialize with a callback to process each game directory"""
+        pass
+    
+    def start(self, max_concurrent_scans: int = 3) -> None:
+        self.semaphore = asyncio.Semaphore(max_concurrent_scans)
         
-        Args:
-            games_directory: Path to the games directory to monitor
-                e.g. /path/to/games
-                        - Game1
-                        - Game2
-        """
-        self.games_directory = games_directory
-        self.pending_scans: Dict[Path, bool] = {} # path -> is_scanning
+    def scan_game_directory(self, game_path: Path) -> None:
+        """Add a game directory to the scan queue"""
+        pass
+        
+        
+    async def _scan_game_directory_task(self, game_path: Path) -> None:
+        """Internal task to scan a game directory"""
+        # 1. create game database entry if not exists
+        # 2. generate manifest.json
+        # 3. scrape metadata from Steam/IGDB
     
-    async def scan_directory(self) -> List[Dict]:
-        """
-        Scan the configured directory for game folders
-        Returns list of discovered game folders with basic info
-        """
-        # TODO: Implement directory scanning
+    async def _manifest_scan_task(self, game_path: Path) -> None:
+        """Internal task to scan a single game directory"""
         pass
     
-    async def generate_game_info(self, game_path: Path) -> Dict:
-        """
-        Generate basic game info from a game folder:
-            1. Create database entry if not exists
-            2. Generate detailed info parallely:
-                a. Generate manifest.json for the game folder
-                    then update database with manifest info
-                c. Add to Scraper queue for metadata fetching
-    
-        Args:
-            game_path: Path to the individual game folder
-        """
-        # TODO: Implement manifest generation
+    async def _metadata_scrape_task(self, game_path: Path) -> None:
+        """Internal task to scrape metadata for a single game"""
         pass
     
+initial_scanner_service = InitialScannerService()
