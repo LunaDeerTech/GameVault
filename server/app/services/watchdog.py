@@ -167,14 +167,17 @@ class GameWatchdogService:
         if file_path.name == "manifest.json":
             if event_type == EventType.CREATED:
                 # manifest created means the game is added, we can start monitoring it
+                logger.debug(f"Manifest created for game directory: {game_dir_path}, starting monitoring")
                 asyncio.create_task(self.new_game_added(game_dir_path))
                 return
             if event_type == EventType.MODIFIED:
                 # manifest modified should not be take into account about game update
                 # because it represents the result of an update, we can just ignore it
+                logger.debug(f"Ignoring manifest modification for game directory: {game_dir_path}")
                 return
             if event_type == EventType.DELETED:
                 # manifest deleted means the game is removed, we can stop monitoring it
+                logger.debug(f"Manifest deleted for game directory: {game_dir_path}, stopping monitoring")
                 if game_dir_path in self.game_directories:
                     del self.game_directories[game_dir_path]
                     logger.info(f"Stopped monitoring game directory (manifest deleted): {game_dir_path} will be re-added on next scan")
@@ -266,6 +269,8 @@ class GameWatchdogService:
         pass
     
     async def new_game_added(self, path: Path) -> None:
+        logger.debug(f"New game directory detected: {path}")
+        
         manifest_path = path / "manifest.json"
         if not manifest_path.exists():
             # Skip monitoring directories without manifest
