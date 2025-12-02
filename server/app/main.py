@@ -7,7 +7,9 @@ from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.api import games, users, auth, saves
-from server.app.services.scraper import metadataScraperService
+from app.services.scraper import metadataScraperService
+from app.services.scanner import initialScannerService
+from app.services.watchdog import GameWatchdogService
 
 # Configure logging
 logging.basicConfig(
@@ -51,6 +53,7 @@ async def lifespan(app: FastAPI):
         igdb_client_secret=settings.IGDB_CLIENT_SECRET,
         max_workers=5
     )
+    initialScannerService.start(max_concurrent_scans=5)
     
     yield
     

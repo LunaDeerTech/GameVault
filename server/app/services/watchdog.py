@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from app.models.game import Game
 from app.schemas.manifest import GameManifest
-from app.services.scanner import initial_scanner_service
+from app.services.scanner import initialScannerService
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ class GameWatchdogService:
                         # Use initial scanner to generate manifest first asynchronously
                         # After manifest is created, watchdog will pick up changes
                         logger.info(f"Game directory {item} missing manifest.json, triggering scan")
-                        initial_scanner_service.scan_game_directory(item)
+                        initialScannerService.scan_game_directory(item)
                         continue
                     else:
                         logger.info(f"Monitoring game directory: {item}")
