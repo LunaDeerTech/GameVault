@@ -13,7 +13,7 @@ from app.models.game import Game
 from app.schemas.manifest import GameManifest
 from app.services.scanner import initialScannerService
 from app.core.config import settings
-from app.crud.game import get_game, update_game
+from app.crud.game import get_game, get_game_by_path, update_game, delete_game
 from app.core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -117,7 +117,7 @@ class GameWatchdogService:
         if self.games_directory.exists() and self.games_directory.is_dir():
             for item in self.games_directory.iterdir():
                 if item.is_dir():
-                    asyncio.create_task(self.new_game_added(item))
+                    asyncio.create_task(self.monitor_game(item))
         else:
             raise ValueError(f"Games directory {self.games_directory} does not exist or is not a directory")
         
@@ -164,11 +164,12 @@ class GameWatchdogService:
         game_dir = file_path.relative_to(self.games_directory).parts[0]
         game_dir_path = self.games_directory / game_dir
         
+        # handle special case for manifest.json
         if file_path.name == "manifest.json":
             if event_type == EventType.CREATED:
                 # manifest created means the game is added, we can start monitoring it
                 logger.debug(f"Manifest created for game directory: {game_dir_path}, starting monitoring")
-                asyncio.create_task(self.new_game_added(game_dir_path))
+                asyncio.create_task(self.monitor_game(game_dir_path))
                 return
             if event_type == EventType.MODIFIED:
                 # manifest modified should not be take into account about game update
@@ -182,9 +183,25 @@ class GameWatchdogService:
                     del self.game_directories[game_dir_path]
                     logger.info(f"Stopped monitoring game directory (manifest deleted): {game_dir_path} will be re-added on next scan")
         
+        # Ignore directory modification events for the game root to avoid duplicate processing
+        if file_path.parent == self.games_directory:
+            if event_type == EventType.MODIFIED:
+                logger.debug(f"Ignoring modification event for game root directory: {game_dir_path}")
+                return
+            if event_type == EventType.DELETED:
+                # Game directory deleted
+                logger.debug(f"Game directory deleted: {game_dir_path}")
+                asyncio.create_task(self.game_deleted(game_dir_path))
+                return
+            if event_type == EventType.CREATED:
+                # New game directory created
+                logger.debug(f"New game directory created: {game_dir_path}")
+                # todo
+                return
+        
+        # Start monitoring game directory
         if game_dir_path not in self.game_directories:
-            # it is a new game add
-            asyncio.create_task(self.new_game_added(game_dir_path))
+            asyncio.create_task(self.monitor_game(game_dir_path))
             return
         
         game_file_change_info = self.game_directories[game_dir_path]
@@ -268,7 +285,7 @@ class GameWatchdogService:
     async def trigger_updates(self, path: Path, game_update_info: Dict) -> None:
         pass
     
-    async def new_game_added(self, path: Path) -> None:
+    async def monitor_game(self, path: Path) -> None:
         logger.debug(f"New game directory detected: {path}")
         
         manifest_path = path / "manifest.json"
@@ -308,6 +325,27 @@ class GameWatchdogService:
                     "removed": []
                 }
             }
+            
+    async def game_deleted(self, path: Path) -> None:
+        logger.info(f"Game directory deleted: {path}")
+        if path in self.game_directories:
+            del self.game_directories[path]
+        # Also delete the game from database
+        db = SessionLocal()
+        game = get_game_by_path(db, path)
+        if game:
+            delete_game(db, game.id)
+            
+    async def game_path_renamed(self, old_path: Path, new_path: Path) -> None:
+        logger.info(f"Game directory renamed from {old_path} to {new_path}")
+        if old_path in self.game_directories:
+            self.game_directories[new_path] = self.game_directories.pop(old_path)
+        # Also update the game path in database
+        db = SessionLocal()
+        game = get_game_by_path(db, old_path)
+        if game:
+            game.path = str(new_path)
+            update_game(db, game.id, game)
     
 
     
