@@ -1,9 +1,12 @@
 """Application Configuration"""
+from datetime import timezone
 import os
 import yaml
 from pathlib import Path
 from typing import List, Dict, Any
 from pydantic import BaseModel, validator
+import time
+from datetime import timedelta
 
 
 def load_config_yaml(config_path: str = "config.yaml") -> Dict[str, Any]:
@@ -59,6 +62,25 @@ class Settings(BaseModel):
     # External APIs
     IGDB_CLIENT_ID: str = ""
     IGDB_CLIENT_SECRET: str = ""
+    
+    # Timezone - auto-detected from system
+    TZ: timezone = timezone.utc
+    
+    @validator('TZ', pre=True, always=True)
+    def set_timezone(cls, v):
+        """Auto-detect system timezone, fallback to UTC"""
+        try:
+            # Get local timezone offset in seconds
+            if time.daylight:
+                offset_seconds = -time.altzone
+            else:
+                offset_seconds = -time.timezone
+            
+            # Create timezone object with offset
+            return timezone(timedelta(seconds=offset_seconds))
+        except Exception:
+            # Fallback to UTC if detection fails
+            return timezone.utc
     
     class Config:
         arbitrary_types_allowed = True

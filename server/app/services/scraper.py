@@ -207,7 +207,7 @@ class MetadataScraper:
             if igdb_id and not merged_metadata.igdb_id:
                 merged_metadata.igdb_id = igdb_id
       
-            merged_metadata.scraped_at = datetime.datetime.now(datetime.timezone.utc)
+            merged_metadata.scraped_at = datetime.datetime.now(settings.TZ)
             
             # Step 5: Update game in database
             if merged_metadata:
