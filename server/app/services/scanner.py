@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.services.manifest import ManifestService
 from app.services.scraper import metadataScraperService
 from app.crud.game import (
-    get_game_by_folder_name, 
+    get_game_by_path, 
     create_game, 
     update_game_manifest_hash,
     update_game_size
@@ -140,11 +140,8 @@ class InitialScannerService:
             Game database model instance or None if failed
         """
         try:
-            # Extract folder name as slug
-            folder_name = game_path.name
-            
             # Check if game already exists
-            existing_game = get_game_by_folder_name(db, folder_name)
+            existing_game = get_game_by_path(db, game_path)
             if existing_game:
                 logger.info(f"Game already exists in database: {existing_game.name}")
                 return existing_game
@@ -152,11 +149,11 @@ class InitialScannerService:
             # Create new game entry
             # Parse folder name to extract potential game title
             # Remove common patterns like version numbers, editions, etc.
-            game_title = self._parse_game_title(folder_name)
+            game_title = self._parse_game_title(game_path.name)
             
             game_data = GameCreate(
                 title=game_title,
-                slug=folder_name,
+                path=game_path,
                 description=None,
                 size_bytes=0  # Will be updated after manifest generation
             )

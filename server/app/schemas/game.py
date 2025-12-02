@@ -2,6 +2,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict
 from datetime import datetime
+from pathlib import Path
 
 class GameBase(BaseModel):
     """Base game schema with common fields shared by create/update/response schemas.
@@ -9,7 +10,6 @@ class GameBase(BaseModel):
     Keep fields minimal here; extend in Game / GameCreate / GameUpdate as needed.
     """
     title: Optional[str] = Field(None, description="Title of the game", max_length=200)
-    slug: str = Field(..., description="Slug for the game, read from game file path")
     description: Optional[str] = Field(None, description="Description of the game")
     developer: Optional[str] = Field(None, description="Developer of the game")
     publisher: Optional[str] = Field(None, description="Publisher of the game")
@@ -39,15 +39,14 @@ class GameCreate(GameBase):
         
     All fields are inherited from GameBase. Title is required, others optional.
     """
-    slug: str = Field(..., description="Slug for the game, read from game file path")
-
+    path: Path = Field(..., description="Path to the game folder", max_length=255)
 
 class GameUpdate(GameBase):
     """Schema for updating a game
 
     All fields are optional for partial updates.
     """
-    pass
+    path: Path = Field(..., description="Path to the game folder", max_length=255)
 
 
 class Game(GameBase):

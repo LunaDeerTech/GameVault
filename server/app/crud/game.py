@@ -4,6 +4,7 @@ import json
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
+from pathlib import Path
 
 from app.models.game import Game
 from app.schemas.game import GameCreate, GameUpdate
@@ -25,9 +26,9 @@ def get_game_by_name(db: Session, name: str) -> Optional[Game]:
     return db.query(Game).filter(Game.name == name).first()
 
 
-def get_game_by_folder_name(db: Session, folder_name: str) -> Optional[Game]:
+def get_game_by_path(db: Session, path: Path) -> Optional[Game]:
     """Get game by folder name (slug)"""
-    return db.query(Game).filter(Game.folder_name == folder_name).first()
+    return db.query(Game).filter(Game.path == str(path)).first()
 
 
 def get_games_by_steam_id(db: Session, steam_id: str) -> Optional[Game]:
@@ -63,8 +64,8 @@ def create_game(db: Session, game: GameCreate) -> Game:
     
     # Map schema fields to model fields
     model_data = {
-        'name': game_data.get('title') or game_data.get('slug'),
-        'folder_name': game_data.get('slug'),
+        'name': game_data.get('title') or game_data.get('path').name,
+        'path': str(game_data.get('path')),
         'description': game_data.get('description'),
         'developer': game_data.get('developer'),
         'publisher': game_data.get('publisher'),
@@ -110,8 +111,8 @@ def update_game(db: Session, game_id: int, game_update: GameUpdate) -> Optional[
     model_updates = {}
     if 'title' in update_data:
         model_updates['name'] = update_data['title']
-    if 'slug' in update_data:
-        model_updates['folder_name'] = update_data['slug']
+    if 'path' in update_data:
+        model_updates['path'] = str(update_data['path'])
     if 'description' in update_data:
         model_updates['description'] = update_data['description']
     if 'developer' in update_data:

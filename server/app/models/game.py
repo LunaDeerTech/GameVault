@@ -12,7 +12,7 @@ class Game(Base):
     id = Column(Integer, primary_key=True, index=True)
     
     name = Column(String(255), nullable=False, index=True)
-    folder_name = Column(String(255), nullable=False, unique=True)
+    path = Column(String(255), nullable=False, unique=True)
     
     description = Column(Text, nullable=True)
     developer = Column(String(255), nullable=True)

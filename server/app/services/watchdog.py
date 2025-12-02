@@ -13,7 +13,7 @@ from app.models.game import Game
 from app.schemas.manifest import GameManifest
 from app.services.scanner import initialScannerService
 from app.core.config import settings
-from app.crud.game import get_game_by_folder_name, get_game, update_game
+from app.crud.game import get_game, update_game
 from app.core.database import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -280,11 +280,18 @@ class GameWatchdogService:
             with open(manifest_path, 'r', encoding='utf-8') as f:
                 manifest_data = json.load(f)
             game = get_game(SessionLocal(), manifest_data["game_id"])
-            if game.folder_name != path.name:
-                logger.warning(f"Folder name {path.name} does not match game record {game.folder_name} updating record")
-                game.folder_name = path.name
+            
+            if not game:
+                # Game not found in database, log warning
+                logger.warning(f"Game with ID {manifest_data['game_id']} not found in database, deleting manifest to trigger re-scan")
+                manifest_path.unlink(missing_ok=True) # Delete manifest to trigger re-scan
+                return
+            
+            if game.path != str(path):
+                logger.warning(f"Game path mismatch for game ID {game.id}, updating path from {game.path} to {path}")
+                game.path = str(path)
                 # Update the game record in the database or wherever it is stored
-                update_game(game)
+                update_game(SessionLocal(), game.id, game)
                 
             self.game_directories[path] = {
                 "last_updated": datetime.now(settings.TZ),

@@ -125,7 +125,7 @@ class ManifestService:
     async def update_manifest(game_id: int, game_path: Path,
                               added_files: Optional[List[Path]] = None,
                               updated_files: Optional[List[Path]] = None,
-                              removed_files: Optional[List[Path]] = None) -> None:
+                              removed_files: Optional[List[Path]] = None) -> Dict:
         """
         Update manifest for a specific game
         Checks for file changes and regenerates manifest if needed
@@ -188,6 +188,8 @@ class ManifestService:
                     json.dump(existing_manifest, f, indent=2, ensure_ascii=False)
             
             await asyncio.get_event_loop().run_in_executor(None, _save_manifest)
+            
+        return existing_manifest
     
     @staticmethod
     async def get_manifest_hash(game_path: Path) -> str:
