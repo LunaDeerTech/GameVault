@@ -220,3 +220,5 @@ credentials/
 
 # Debug files
 *.dmp
+
+storage/

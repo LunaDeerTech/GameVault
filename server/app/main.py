@@ -25,12 +25,12 @@ logger.info("Initializing storage...")
 if not os.path.exists(settings.STORAGE_PATH):
     os.makedirs(settings.STORAGE_PATH, exist_ok=True)
     logger.info(f"Created storage directory at {settings.STORAGE_PATH}")
+if not os.path.exists(os.path.join(settings.STORAGE_PATH, "static")):
     os.makedirs(os.path.join(settings.STORAGE_PATH, "static"), exist_ok=True)
     logger.info(f"Created static directory at {os.path.join(settings.STORAGE_PATH, 'static')}")
+if not os.path.exists(os.path.join(settings.STORAGE_PATH, "saves")):
     os.makedirs(os.path.join(settings.STORAGE_PATH, "saves"), exist_ok=True)
     logger.info(f"Created saves directory at {os.path.join(settings.STORAGE_PATH, 'saves')}")
-else:
-    logger.info(f"Storage directory already exists at {settings.STORAGE_PATH}")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

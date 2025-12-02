@@ -18,18 +18,15 @@ security:
   access_token_expire_minutes: 10080  # 7 days
 
 # CORS Configuration
-cors:
-  allowed_origins:
+cors-allowed_origins:
     - http://localhost:3000
     - http://localhost:5173
 
 # Database Configuration
-database:
-  url: sqlite:///storage/gamevault.db
+database-url: sqlite:///storage/gamevault.db
 
 # Storage Configuration
-storage:
-  path: /storage
+storage-path: /storage
 
 # External APIs Configuration
 external_apis:
