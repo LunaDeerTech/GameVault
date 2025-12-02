@@ -31,6 +31,7 @@ class Game(Base):
     total_size = Column(BigInteger, default=0)
     manifest_hash = Column(String(64), nullable=True)
     
+    indexing_at = Column(DateTime(timezone=True), nullable=True)
     scraped_at = Column(DateTime(timezone=True), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())

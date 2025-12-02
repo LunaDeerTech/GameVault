@@ -31,6 +31,7 @@ class GameBase(BaseModel):
     size_bytes: Optional[int] = Field(None, description="Total size of the game files in bytes")
     manifest_hash: Optional[str] = Field(None, description="SHA-256 hash of manifest.json")
 
+    indexing_at: Optional[datetime] = Field(None, description="Timestamp when the game manifest was last indexed")
     scraped_at: Optional[datetime] = Field(None, description="Timestamp when the game metadata was last scraped")
 
 class GameCreate(GameBase):

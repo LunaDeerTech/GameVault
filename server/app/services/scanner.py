@@ -231,7 +231,7 @@ class InitialScannerService:
             logger.info(f"Generating manifest for: {game_path}")
             
             # Generate manifest using ManifestService
-            manifest = await ManifestService.generate_manifest(game_path)
+            manifest = await ManifestService.generate_manifest(game_id, game_path)
             
             # Calculate manifest hash
             manifest_hash = await ManifestService.get_manifest_hash(game_path)

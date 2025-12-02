@@ -1,6 +1,7 @@
 """FastAPI Application Entry Point"""
 from contextlib import asynccontextmanager
 import logging, os
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -47,7 +48,6 @@ async def lifespan(app: FastAPI):
         logger.error(f"Database initialization failed: {e}")
         raise
     
-    # TODO: Start background tasks (APScheduler)
     metadataScraperService.start(
         igdb_client_id=settings.IGDB_CLIENT_ID,
         igdb_client_secret=settings.IGDB_CLIENT_SECRET,
@@ -55,12 +55,25 @@ async def lifespan(app: FastAPI):
     )
     initialScannerService.start(max_concurrent_scans=5)
     
+    watchdog_services = []
+    for path in settings.GAME_CONTENT_PATHS:
+        try:
+            watchdog = GameWatchdogService(Path(path))
+            await watchdog.start_monitoring()
+            watchdog_services.append(watchdog)
+            logger.info(f"Started GameWatchdogService for path: {path}")
+        except Exception as e:
+            logger.error(f"Failed to start GameWatchdogService for path {path}: {e}")
+    
     yield
     
     # Shutdown: Cleanup
-    # TODO: Close database connections
-    # TODO: Stop background tasks
-    pass
+    for watchdog in watchdog_services:
+        await watchdog.stop_monitoring()
+    await metadataScraperService.stop()
+    await initialScannerService.stop()
+    
+    logger.info("Application shutdown complete")
 
 
 # Create FastAPI application

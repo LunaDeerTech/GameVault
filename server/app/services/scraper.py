@@ -12,7 +12,7 @@ from app.schemas.game import GameUpdate
 from app.crud.game import update_game
 from sqlalchemy.orm import Session
 
-from server.app.core.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +27,7 @@ class MetadataScraper:
         self._running = False
         
     
-    async def start(self, igdb_client_id: str = "", igdb_client_secret: str = "", max_workers: int = 5):
+    def start(self, igdb_client_id: str = "", igdb_client_secret: str = "", max_workers: int = 5):
         """Start the scraper worker pool"""
         self.max_workers = max_workers  # Max concurrent scraping tasks
         self.steam_scraper = SteamScraper()
@@ -197,6 +197,10 @@ class MetadataScraper:
                         logger.error(f"Failed to download IGDB metadata: {igdb_result}")
                     else:
                         igdb_metadata = igdb_result
+                        
+            if not steam_metadata and not igdb_metadata:
+                logger.warning(f"No metadata found for game: {game.name}")
+                return False
             
             # Step 4: Merge metadata (IGDB takes precedence for conflicts)
             merged_metadata = self._merge_metadata(steam_metadata, igdb_metadata)

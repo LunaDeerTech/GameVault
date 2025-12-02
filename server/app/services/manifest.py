@@ -11,7 +11,7 @@ class ManifestService:
     """Service for managing game manifests and computing differences"""
         
     @staticmethod
-    async def generate_manifest(game_path: Path) -> Dict:
+    async def generate_manifest(game_id: int, game_path: Path) -> Dict:
         """
         Generate manifest.json for a game directory
         Contains file fingerprints (path, size, modified time, hash)
@@ -83,6 +83,7 @@ class ManifestService:
         # Generate manifest
         manifest = {
             'version': '1.0',
+            'game_id': game_id,
             'generated_at': asyncio.get_event_loop().time(),
             'files': files,
             'total_size': total_size,
@@ -121,7 +122,7 @@ class ManifestService:
             raise ValueError(f"Failed to calculate hash for {file_path}: {e}")
     
     @staticmethod
-    async def update_manifest(game_path: Path, 
+    async def update_manifest(game_id: int, game_path: Path,
                               added_files: Optional[List[Path]] = None,
                               updated_files: Optional[List[Path]] = None,
                               removed_files: Optional[List[Path]] = None) -> None:
@@ -133,7 +134,7 @@ class ManifestService:
         
         if not manifest_path.exists():
             # No existing manifest, generate new one
-            await ManifestService.generate_manifest(game_path)
+            await ManifestService.generate_manifest(game_id, game_path)
             return
         
         # Load existing manifest

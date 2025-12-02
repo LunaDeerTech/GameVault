@@ -1,4 +1,5 @@
 """CRUD operations for Game model"""
+from datetime import datetime, timezone
 import json
 from typing import Optional, List
 from sqlalchemy.orm import Session
@@ -6,6 +7,7 @@ from sqlalchemy import or_
 
 from app.models.game import Game
 from app.schemas.game import GameCreate, GameUpdate
+from app.core.config import settings
 
 
 def get_game(db: Session, game_id: int) -> Optional[Game]:
@@ -76,6 +78,8 @@ def create_game(db: Session, game: GameCreate) -> Game:
         'content_rating_age_limit': game_data.get('content_rating_age_limit'),
         'total_size': game_data.get('size_bytes', 0),
         'manifest_hash': game_data.get('manifest_hash'),
+        'indexing_at': game_data.get('indexing_at'),
+        'scraped_at': game_data.get('scraped_at'),
     }
     
     # Remove None values
@@ -136,6 +140,8 @@ def update_game(db: Session, game_id: int, game_update: GameUpdate) -> Optional[
         model_updates['manifest_hash'] = update_data['manifest_hash']
     if 'scraped_at' in update_data:
         model_updates['scraped_at'] = update_data['scraped_at']
+    if 'indexing_at' in update_data:
+        model_updates['indexing_at'] = update_data['indexing_at']
     
     # Update the game
     for key, value in model_updates.items():
@@ -184,6 +190,7 @@ def update_game_manifest_hash(db: Session, game_id: int, manifest_hash: str) -> 
         return None
     
     db_game.manifest_hash = manifest_hash
+    db_game.indexing_at = datetime.now(settings.TZ)
     db.commit()
     db.refresh(db_game)
     return db_game
