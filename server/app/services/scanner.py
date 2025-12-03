@@ -18,9 +18,80 @@ from app.crud.game import (
 from app.schemas.game import GameCreate, GameUpdate
 from app.core.database import SessionLocal
 from app.models.game import Game
-
+from app.services.watchdog import WatchdogService, FileChangeBatch, DirectoryEventHandler
 
 logger = logging.getLogger(__name__)
+
+class GamesDirectoryWatchdogService(WatchdogService):
+    """
+    Watchdog service to monitor game directories for adding and removing games
+    """
+    
+    def __init__(self, games_directory: Path, scanner_service: 'ScannerService'):
+        super().__init__(games_directory, DirectoryEventHandler(watchdog_service = self))
+        self.scanner_service = scanner_service
+        
+    async def start(self):
+        """Start the watchdog service"""
+        await super().start(folder_only=True)
+        logger.info(f"Started monitoring games directory: {self.path}")
+    
+    async def stop(self):
+        """Stop the watchdog service"""
+        await super().stop()
+        logger.info(f"Stopped monitoring games directory: {self.path}")
+        
+    async def handle_file_change(self, file_changes: FileChangeBatch):
+        logger.debug("GamesDirectoryWatchdogService class implemented: handle_file_change")
+        game_pathes_adding = []
+        game_pathes_remove = []
+        
+        def extract_game_path(file_path: Path) -> Optional[Path]:
+            releative_path = file_path.relative_to(self.path)
+            game_path = releative_path.parts[0]
+            abs_game_path = self.path / game_path
+            return abs_game_path
+        
+        for added_file in file_changes.added_files:
+            game_path = extract_game_path(added_file)
+            if game_path and game_path not in game_pathes_adding:
+                game_pathes_adding.append(game_path)
+                
+        for removed_file in file_changes.removed_files:
+            game_path = extract_game_path(removed_file)
+            if game_path and game_path not in game_pathes_remove:
+                game_pathes_remove.append(game_path)
+                
+        # Process added game directories
+        for game_path in game_pathes_adding:
+            logger.info(f"Detected new game directory: {game_path}, starting scan")
+            await self.scanner_service.scan_game_directory(game_path)
+            
+        # Process removed game directories
+        for game_path in game_pathes_remove:
+            logger.info(f"Detected removed game directory: {game_path}, de-scanning")
+            await self.scanner_service.de_scan_game_directory(game_path)
+    
+    
+class GamePathWatchdogService(WatchdogService):
+    """
+    Watchdog service to monitor individual game directories for file changes
+    """
+    
+    def __init__(self, games_directory: Path, scanner_service: 'ScannerService'):
+        super().__init__(games_directory, DirectoryEventHandler(watchdog_service = self))
+        self.scanner_service = scanner_service
+        
+    async def start(self):
+        """Start the watchdog service"""
+        await super().start(folder_only=False)
+    
+    async def stop(self):
+        """Stop the watchdog service"""
+        await super().stop()
+        
+    async def handle_file_change(self, file_changes: FileChangeBatch):
+        pass
 
 
 class ScannerService():
@@ -37,6 +108,8 @@ class ScannerService():
                         - Game2
         """
         self.games_directory = games_directory
+        self.watchdog_service = GamesDirectoryWatchdogService(games_directory, self)
+        self.game_path_watchdogs: Dict[Path, GamePathWatchdogService] = {}
         
     async def start_scan(self):
         scan_tasks = []
@@ -47,9 +120,13 @@ class ScannerService():
         else:
             raise ValueError(f"Games directory {self.games_directory} does not exist or is not a directory")
         await asyncio.gather(*scan_tasks)
+        await self.watchdog_service.start()
         
     async def stop_scan(self):
-        pass
+        """Stop the scanner service and all associated watchdogs"""
+        for watchdog in self.game_path_watchdogs.values():
+            await watchdog.stop()
+        await self.watchdog_service.stop()
         
     async def scan_game_directory(self, game_path: Path) -> None:
         if not game_path.exists() or not game_path.is_dir():
@@ -69,11 +146,12 @@ class ScannerService():
         # 3. process metadata scraping
         await self.process_metadata_scrape(db, game)
         
-        logger.info(f"Completed scanning for game: {game.name}")
+        logger.info(f"Completed scanning for game: {game.name} (ID: {game.id})")
         
         # 4. Start Watchdog monitoring
-        # TODO: Implement watchdog monitoring for game directory changes
-        pass
+        game_path_watchdog = GamePathWatchdogService(game_path, self)
+        await game_path_watchdog.start()
+        self.game_path_watchdogs[game_path] = game_path_watchdog
             
     async def process_manifest(self, db: Session, game: Game, game_path: Path) -> Optional[Dict[str, Any]]:
         manifest_path = game_path / 'manifest.json'
@@ -238,3 +316,25 @@ class ScannerService():
                 
         except Exception as e:
             logger.error(f"Failed to scrape metadata for {game.name}: {e}", exc_info=True)
+            
+    async def de_scan_game_directory(self, game_path: Path) -> None:
+        """De-scan a game directory - stop monitoring and remove from DB if needed"""
+        if game_path in self.game_path_watchdogs:
+            watchdog = self.game_path_watchdogs[game_path]
+            await watchdog.stop()
+            del self.game_path_watchdogs[game_path]
+            logger.info(f"Stopped monitoring game directory: {game_path}")
+        else:
+            logger.warning(f"No active monitoring found for game directory: {game_path}")
+        
+        # Optionally, remove game entry from DB
+        db = SessionLocal()
+        game = get_game_by_path(db, game_path)
+        if game:
+            db.delete(game)
+            db.commit()
+            logger.info(f"Removed game entry from database: {game.name}")
+        else:
+            logger.warning(f"No game entry found in database for path: {game_path}")
+        db.close()
+            

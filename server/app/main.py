@@ -19,6 +19,10 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
+# Suppress watchdog debug logs
+logging.getLogger('watchdog.observers.inotify_buffer').setLevel(logging.WARNING)
+logging.getLogger('watchdog').setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 logger.info("Initializing storage...")
