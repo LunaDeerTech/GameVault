@@ -1,4 +1,5 @@
 """FastAPI Application Entry Point"""
+import asyncio
 from contextlib import asynccontextmanager
 import logging, os
 from pathlib import Path
@@ -9,8 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.api import games, users, auth, saves
 from app.services.scraper import metadataScraperService
-from app.services.scanner import initialScannerService
-from app.services.watchdog import GameWatchdogService
+from app.services.scanner import ScannerService
 
 # Configure logging
 logging.basicConfig(
@@ -53,25 +53,23 @@ async def lifespan(app: FastAPI):
         igdb_client_secret=settings.IGDB_CLIENT_SECRET,
         max_workers=5
     )
-    initialScannerService.start(max_concurrent_scans=5)
     
-    watchdog_services = []
+    scanner_services = []
     for path in settings.GAME_CONTENT_PATHS:
         try:
-            watchdog = GameWatchdogService(Path(path))
-            await watchdog.start_monitoring()
-            watchdog_services.append(watchdog)
-            logger.info(f"Started GameWatchdogService for path: {path}")
+            scanner = ScannerService(Path(path))
+            asyncio.create_task(scanner.start_scan())
+            scanner_services.append(scanner)
+            logger.info(f"Started ScannerService for path: {path}")
         except Exception as e:
-            logger.error(f"Failed to start GameWatchdogService for path {path}: {e}")
+            logger.error(f"Failed to start ScannerService for path {path}: {e}")
     
     yield
     
     # Shutdown: Cleanup
-    for watchdog in watchdog_services:
-        await watchdog.stop_monitoring()
+    for scanner in scanner_services:
+        await scanner.stop_scan()
     await metadataScraperService.stop()
-    await initialScannerService.stop()
     
     logger.info("Application shutdown complete")
 

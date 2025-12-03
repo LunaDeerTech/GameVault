@@ -8,127 +8,119 @@ from sqlalchemy.orm import Session
 from app.services.manifest import ManifestService
 from app.services.scraper import metadataScraperService
 from app.crud.game import (
-    get_game_by_path, 
+    get_game, 
+    get_game_by_path,
+    update_game,
     create_game, 
     update_game_manifest_hash,
     update_game_size
 )
-from app.schemas.game import GameCreate
+from app.schemas.game import GameCreate, GameUpdate
 from app.core.database import SessionLocal
+from app.models.game import Game
 
 
 logger = logging.getLogger(__name__)
 
 
-class InitialScannerService:
-    """Service to perform initial scan of game directories"""
+class ScannerService():
+    """Base scanner service class"""
     
-    def __init__(self):
-        """Initialize scanner service"""
-        self._running = False
-        self._scan_tasks = []
-        self.semaphore = None
-        
-    def start(self, max_concurrent_scans: int = 3) -> None:
+    def __init__(self, games_directory: Path):
         """
-        Start the scanner service with controlled concurrency
+        Initialize watchdog service
         
         Args:
-            max_concurrent_scans: Maximum number of concurrent scanning operations
+            games_directory: Path to the games directory to monitor
+                e.g. /path/to/games
+                        - Game1
+                        - Game2
         """
-        self.semaphore = asyncio.Semaphore(max_concurrent_scans)
-        self._running = True
-        logger.info(f"InitialScannerService started with max_concurrent_scans={max_concurrent_scans}")
-    
-    async def stop(self) -> None:
-        """Stop the scanner service gracefully"""
-        if not self._running:
-            return
+        self.games_directory = games_directory
         
-        logger.info("Stopping InitialScannerService...")
-        self._running = False
+    async def start_scan(self):
+        scan_tasks = []
+        if self.games_directory.exists() and self.games_directory.is_dir():
+            for item in self.games_directory.iterdir():
+                if item.is_dir():
+                    scan_tasks.append(asyncio.create_task(self.scan_game_directory(item)))
+        else:
+            raise ValueError(f"Games directory {self.games_directory} does not exist or is not a directory")
+        await asyncio.gather(*scan_tasks)
         
-        # Wait for all active scan tasks to complete
-        if self._scan_tasks:
-            await asyncio.gather(*self._scan_tasks, return_exceptions=True)
-            self._scan_tasks.clear()
+    async def stop_scan(self):
+        pass
         
-        logger.info("InitialScannerService stopped")
-    
-    def scan_game_directory(self, game_path: Path) -> None:
-        """
-        Add a game directory to the scan queue
-        
-        Args:
-            game_path: Path to the game directory to scan
-        """
-        if not self._running:
-            logger.warning("Scanner is not running. Call start() first.")
-            return
-        
+    async def scan_game_directory(self, game_path: Path) -> None:
         if not game_path.exists() or not game_path.is_dir():
-            logger.error(f"Invalid game directory: {game_path}")
-            return
+            logger.warning(f"Invalid game directory: {game_path}")
+            return None
         
-        # Create and track the scanning task
-        task = asyncio.create_task(self._scan_game_directory_task(game_path))
-        self._scan_tasks.append(task)
+        logger.info(f"Scanning game directory: {game_path}")
+        db = SessionLocal()
         
-        # Cleanup completed tasks
-        self._scan_tasks = [t for t in self._scan_tasks if not t.done()]
+        # 1. Ensure game entry exists in DB
+        game = await self.ensure_game_entry(db, game_path)
+        if not game:
+            logger.error(f"Failed to ensure game entry for path: {game_path}")
+            return None
+        # 2. Process manifest
+        await self.process_manifest(db, game, game_path)
+        # 3. process metadata scraping
+        await self.process_metadata_scrape(db, game)
         
-        logger.info(f"Queued game directory for scanning: {game_path}")
+        logger.info(f"Completed scanning for game: {game.name}")
+        
+        # 4. Start Watchdog monitoring
+        # TODO: Implement watchdog monitoring for game directory changes
+        pass
+            
+    async def process_manifest(self, db: Session, game: Game, game_path: Path) -> Optional[Dict[str, Any]]:
+        manifest_path = game_path / 'manifest.json'
+        
+        if not game.manifest_hash:
+            # No manifest hash in DB, generate manifest
+            return await self.generate_manifest_for_game(game, game_path, force=True, db=db)
+        else:
+            if manifest_path.exists():
+                # Check if manifest hash matches
+                manifest_hash = await ManifestService.calculate_file_hash(manifest_path)
+                if game.manifest_hash != manifest_hash:
+                    # Manifest changed, re-generate
+                    return await self.generate_manifest_for_game(game, game_path, force=True, db=db)
+                else:
+                    # Manifest unchanged, load existing manifest
+                    manifest_service = ManifestService(manifest_path)
+                    manifest = manifest_service.load_manifest()
+                    return manifest
+            else:
+                # Manifest file missing, generate new manifest
+                return await self.generate_manifest_for_game(game, game_path, force=True, db=db)
+        
+    async def generate_manifest_for_game(self, game: Game, game_path: Path, force: bool, db: Session) -> Optional[Dict[str, Any]]:
+        """Generate manifest for a specific game"""
+        manifest_path = game_path / 'manifest.json'
+        if manifest_path.exists():
+            if not force:
+                # Manifest already exists, skip generation
+                logger.info(f"Manifest already exists for game {game.name}, skipping generation")
+                return None
+            else:
+                logger.info(f"Force regenerating manifest for game {game.name}")
+                manifest_path.unlink()
+        time_start = asyncio.get_event_loop().time()
+        manifest = await ManifestService.generate_manifest(game_path)
+        time_end = asyncio.get_event_loop().time()
+        if manifest:
+            manifest_hash = await ManifestService.calculate_file_hash(manifest_path)
+            update_game_manifest_hash(db, game.id, manifest_hash)
+            update_game_size(db, game.id, manifest.get('total_size'))
+            logger.info(f"Generated manifest for game {game.name} (ID: {game.id}) in {time_end - time_start:.2f} seconds")
+        else:
+            logger.error(f"Failed to generate manifest for game {game.name} (ID: {game.id}) in {time_end - time_start:.2f} seconds")
+        return manifest
     
-    async def _scan_game_directory_task(self, game_path: Path) -> None:
-        """
-        Internal task to scan a game directory
-        
-        Performs three main operations:
-        1. Create game database entry if not exists
-        2. Generate manifest.json for file tracking
-        3. Scrape metadata from Steam/IGDB
-        
-        Args:
-            game_path: Path to the game directory
-        """
-        async with self.semaphore:
-            try:
-                logger.info(f"Starting scan for: {game_path}")
-                
-                # Get database session
-                db = SessionLocal()
-                
-                try:
-                    # Step 1: Create or retrieve game database entry
-                    game = await self._ensure_game_entry(db, game_path)
-                    if not game:
-                        logger.error(f"Failed to create/retrieve game entry for: {game_path}")
-                        return
-                    
-                    logger.info(f"Game entry ready: {game.name} (ID: {game.id})")
-                    
-                    # Step 2: Generate manifest in parallel with metadata scraping
-                    manifest_task = asyncio.create_task(
-                        self._manifest_scan_task(db, game_path, game.id)
-                    )
-                    
-                    # Step 3: Scrape metadata (runs in parallel with manifest generation)
-                    metadata_task = asyncio.create_task(
-                        self._metadata_scrape_task(db, game)
-                    )
-                    
-                    # Wait for both tasks to complete
-                    await asyncio.gather(manifest_task, metadata_task, return_exceptions=True)
-                    
-                    logger.info(f"Successfully completed scan for: {game.name}")
-                    
-                finally:
-                    db.close()
-                    
-            except Exception as e:
-                logger.error(f"Error scanning game directory {game_path}: {e}", exc_info=True)
-    
-    async def _ensure_game_entry(self, db: Session, game_path: Path) -> Optional[Any]:
+    async def ensure_game_entry(self, db: Session, game_path: Path) -> Optional[Any]:
         """
         Ensure game entry exists in database, create if not exists
         
@@ -149,13 +141,11 @@ class InitialScannerService:
             # Create new game entry
             # Parse folder name to extract potential game title
             # Remove common patterns like version numbers, editions, etc.
-            game_title = self._parse_game_title(game_path.name)
+            game_title = self.parse_game_title(game_path.name)
             
             game_data = GameCreate(
                 title=game_title,
-                path=game_path,
-                description=None,
-                size_bytes=0  # Will be updated after manifest generation
+                path=game_path
             )
             
             new_game = create_game(db, game_data)
@@ -166,8 +156,8 @@ class InitialScannerService:
         except Exception as e:
             logger.error(f"Failed to ensure game entry for {game_path}: {e}", exc_info=True)
             return None
-    
-    def _parse_game_title(self, folder_name: str) -> str:
+        
+    def parse_game_title(self, folder_name: str) -> str:
         """
         Parse game title from folder name
         
@@ -176,6 +166,7 @@ class InitialScannerService:
         - Edition markers (GOTY, Deluxe, Complete)
         - Platform markers (Windows, PC)
         - Common separators (underscores, dashes)
+        - Prefix ([xxxxx])
         
         Args:
             folder_name: Original folder name
@@ -199,6 +190,7 @@ class InitialScannerService:
             r'\s*-?\s*Enhanced\s*Edition\s*',
             r'\s*-?\s*Remastered\s*',
             r'\s*-?\s*HD\s*',
+            r'\s*-?\s*\[.*?\]\s*',
         ]
         
         for pattern in edition_patterns:
@@ -215,38 +207,7 @@ class InitialScannerService:
         
         return title if title else folder_name
     
-    async def _manifest_scan_task(self, db: Session, game_path: Path, game_id: int) -> None:
-        """
-        Internal task to generate manifest for a game directory
-        
-        Args:
-            db: Database session
-            game_path: Path to the game directory
-            game_id: Database ID of the game
-        """
-        try:
-            logger.info(f"Generating manifest for: {game_path}")
-            
-            # Generate manifest using ManifestService
-            manifest = await ManifestService.generate_manifest(game_id, game_path)
-            
-            # Calculate manifest hash
-            manifest_hash = await ManifestService.get_manifest_hash(game_path)
-            
-            # Update game with manifest hash and total size
-            update_game_manifest_hash(db, game_id, manifest_hash)
-            update_game_size(db, game_id, manifest.get('total_size', 0))
-            
-            logger.info(
-                f"Manifest generated successfully: "
-                f"{manifest.get('file_count', 0)} files, "
-                f"{manifest.get('total_size', 0)} bytes"
-            )
-            
-        except Exception as e:
-            logger.error(f"Failed to generate manifest for {game_path}: {e}", exc_info=True)
-    
-    async def _metadata_scrape_task(self, db: Session, game: Any) -> None:
+    async def process_metadata_scrape(self, db: Session, game: Game, force=False) -> None:
         """
         Internal task to scrape metadata for a game
         
@@ -254,6 +215,12 @@ class InitialScannerService:
             db: Database session
             game: Game database model instance
         """
+        if game.scraped_at:
+            if not force:
+                logger.info(f"Metadata of game {game.name} already scraped at {game.scraped_at}, skipping")
+                return
+            else:
+                logger.info(f"Force re-scraping metadata for game {game.name}")
         try:
             logger.info(f"Scraping metadata for: {game.name}")
             
@@ -271,17 +238,3 @@ class InitialScannerService:
                 
         except Exception as e:
             logger.error(f"Failed to scrape metadata for {game.name}: {e}", exc_info=True)
-    
-    def get_active_scans(self) -> int:
-        """Get the number of currently active scan tasks"""
-        # Clean up completed tasks first
-        self._scan_tasks = [t for t in self._scan_tasks if not t.done()]
-        return len(self._scan_tasks)
-    
-    def is_running(self) -> bool:
-        """Check if the scanner is running"""
-        return self._running
-
-
-# Global scanner service instance
-initialScannerService = InitialScannerService()

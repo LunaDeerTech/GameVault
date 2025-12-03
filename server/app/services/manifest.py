@@ -9,9 +9,30 @@ from typing import Dict, List, Optional
 
 class ManifestService:
     """Service for managing game manifests and computing differences"""
+    
+    def __init__(self, manifest_path: Path):
+        """
+        Initialize ManifestService
+        
+        Args:
+            manifest_path: Path to the manifest.json file
+        """
+        self.manifest_path = manifest_path
+        self.manifest_data = None
+        
+    def load_manifest(self) -> Dict:
+        """Load manifest data from JSON file"""
+        if not self.manifest_path.exists():
+            raise FileNotFoundError(f"Manifest file not found: {self.manifest_path}")
+        
+        with open(self.manifest_path, 'r', encoding='utf-8') as f:
+            self.manifest_data = json.load(f)
+            
+        return self.manifest_data
+    
         
     @staticmethod
-    async def generate_manifest(game_id: int, game_path: Path) -> Dict:
+    async def generate_manifest(game_path: Path) -> Dict:
         """
         Generate manifest.json for a game directory
         Contains file fingerprints (path, size, modified time, hash)
@@ -83,7 +104,6 @@ class ManifestService:
         # Generate manifest
         manifest = {
             'version': '1.0',
-            'game_id': game_id,
             'generated_at': asyncio.get_event_loop().time(),
             'files': files,
             'total_size': total_size,
